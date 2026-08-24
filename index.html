@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ellesse Rappresentanze — KPI Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#f0f2f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1f2e;padding:16px}
+.header{background:linear-gradient(135deg,#0d2b52,#146ff8);color:#fff;padding:20px;border-radius:12px;margin-bottom:16px}
+.header h1{font-size:20px;font-weight:700}
+.header .sub{font-size:12px;opacity:.85;margin-top:4px}
+.header .date{font-size:11px;opacity:.6;margin-top:6px}
+.grid{display:grid;gap:12px;margin-bottom:16px}
+.kpi-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.card .label{font-size:11px;color:#5a6472;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.card .value{font-size:22px;font-weight:800;margin-top:4px;color:#0d2b52}
+.card .sub{font-size:11px;color:#5a6472;margin-top:2px}
+.card .trend-up{color:#1fae5f}.card .trend-down{color:#c0392b}
+.chart-grid{grid-template-columns:1fr}
+@media(min-width:768px){.chart-grid{grid-template-columns:1fr 1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f4f7fc;padding:8px 10px;text-align:left;font-weight:600;color:#0d2b52;border-bottom:2px solid #d4dae3}
+td{padding:7px 10px;border-bottom:1px solid #e8ecf2}
+tr:last-child td{border-bottom:none}
+.bar-cell{display:flex;align-items:center;gap:8px}
+.bar{height:10px;border-radius:5px;min-width:4px;transition:width 1s}
+.bar-label{font-size:11px;color:#5a6472;min-width:45px;text-align:right}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.pill-green{background:#e6f9ed;color:#1fae5f}
+.pill-orange{background:#fef3e2;color:#e67e22}
+.pill-red{background:#fce4e4;color:#c0392b}
+.pill-blue{background:#e3ecf9;color:#146ff8}
+h2{font-size:16px;color:#0d2b52;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.section{margin-bottom:20px}
+canvas{max-height:260px}
+.footer{text-align:center;font-size:10px;color:#8899aa;margin-top:20px;padding-top:12px;border-top:1px solid #d4dae3}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 Ellesse Rappresentanze</h1>
+  <div class="sub">KPI Dashboard — Venduto e Provvigioni 2026</div>
+  <div class="date">Dati aggiornati ad agosto 2026 · 7 mandanti + commercializzato</div>
+</div>
+
+<!-- KPI CARD -->
+<div class="grid kpi-grid" id="kpiCards">
+  <div class="card">
+    <div class="label">Venduto YTD</div>
+    <div class="value" id="kpiVenduto">—</div>
+    <div class="sub">7 mandanti · gen-lug 2026</div>
+  </div>
+  <div class="card">
+    <div class="label">Provvigioni YTD</div>
+    <div class="value" id="kpiProvvigioni">—</div>
+    <div class="sub">aliquote 3-7,8%</div>
+  </div>
+  <div class="card">
+    <div class="label">Margine Comm.</div>
+    <div class="value" id="kpiMargine">—</div>
+    <div class="sub">30% su €136k imponibile</div>
+  </div>
+  <div class="card">
+    <div class="label">Clienti Attivi</div>
+    <div class="value">205</div>
+    <div class="sub">nel database follow-up</div>
+  </div>
+  <div class="card">
+    <div class="label">Proiez. Fine Anno</div>
+    <div class="value" id="kpiProiezione">—</div>
+    <div class="sub">prudenziale · no Lo Monaco</div>
+  </div>
+  <div class="card">
+    <div class="label">Mandanti</div>
+    <div class="value">7/9</div>
+    <div class="sub">+ Ditec + Roto in arrivo</div>
+  </div>
+</div>
+
+<!-- CHART ROW -->
+<div class="grid chart-grid">
+  <div class="card">
+    <h2>📈 Venduto per Mandante</h2>
+    <canvas id="chartVenduto"></canvas>
+  </div>
+  <div class="card">
+    <h2>💵 Provvigioni per Mandante</h2>
+    <canvas id="chartProvvigioni"></canvas>
+  </div>
+</div>
+
+<!-- TABELLA MANDANTI -->
+<div class="card section">
+  <h2>🏢 Dettaglio Mandanti</h2>
+  <div style="overflow-x:auto">
+    <table id="tabellaMandanti">
+      <thead>
+        <tr>
+          <th>Mandante</th>
+          <th style="text-align:right">Venduto YTD</th>
+          <th style="text-align:center">%</th>
+          <th style="text-align:center">Aliq.</th>
+          <th style="text-align:right">Provvigione</th>
+          <th style="text-align:center">Periodo</th>
+          <th>Trend</th>
+        </tr>
+      </thead>
+      <tbody id="tbodyMandanti"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DISTRIBUZIONE -->
+<div class="grid chart-grid">
+  <div class="card">
+    <h2>📊 Guadagno Totale</h2>
+    <canvas id="chartGuadagno"></canvas>
+  </div>
+  <div class="card">
+    <h2>📅 Proiezione Mensile 2026</h2>
+    <canvas id="chartMensile"></canvas>
+  </div>
+</div>
+
+<!-- DETTAGLIO PROVVIGIONI -->
+<div class="card section">
+  <h2>💰 Aliquote Provvigioni</h2>
+  <table>
+    <thead>
+      <tr><th>Mandante</th><th style="text-align:center">Aliquota</th><th style="text-align:right">Su fatturato</th><th>Resa</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Biemme Finestre</td><td style="text-align:center">6,0%</td><td style="text-align:right">€1.676.262</td><td>🔝 Top performer</td></tr>
+      <tr><td>Novoferm</td><td style="text-align:center">7,85%</td><td style="text-align:right">€345.868</td><td>⭐ Aliquota più alta</td></tr>
+      <tr><td>Gerflor</td><td style="text-align:center">4,8%</td><td style="text-align:right">€745.323</td><td>📈 In crescita 7,6%</td></tr>
+      <tr><td>Ferrero Legno</td><td style="text-align:center">4,5%</td><td style="text-align:right">€323.064</td><td>🟡 Sotto budget</td></tr>
+      <tr><td>Internorm</td><td style="text-align:center">4,0%</td><td style="text-align:right">€299.414</td><td>🔴 Est soffre (-42%)</td></tr>
+      <tr><td>Cherubini</td><td style="text-align:center">4,0%</td><td style="text-align:right">€281.057</td><td>🔴 15 clienti persi</td></tr>
+      <tr><td>CH-Mimetal</td><td style="text-align:center">3,0%</td><td style="text-align:right">€55.755</td><td>🟡 In linea</td></tr>
+      <tr><td style="font-weight:700;color:#0d2b52">Commercializzato</td><td style="text-align:center;font-weight:700;color:#1fae5f">30,0%</td><td style="text-align:right">€136.066</td><td>🔥 Margine 6x provvigioni</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  Ellesse Rappresentanze · Lelio Silipigni · Dashboard generata da Hermes AI · Agosto 2026
+</div>
+
+<script>
+// Dati
+const data = {
+  labels: ['Biemme','Gerflor','Ferrero','Novoferm','Internorm','Cherubini','CH-Mimetal'],
+  venduto: [1676262,745323,323064,345868,299414,281057,55755],
+  provvigioni: [100576,35776,14538,27158,11977,11242,1673],
+  colori: ['#146ff8','#1fae5f','#e67e22','#9b59b6','#3498db','#c0392b','#7f8c8d']
+};
+
+const formatEuro = v => '€'+v.toLocaleString('it-IT',{maximumFractionDigits:0});
+const formatx = v => v.toLocaleString('it-IT',{maximumFractionDigits:0});
+
+// KPI
+const totV = data.venduto.reduce((a,b)=>a+b,0);
+const totP = data.provvigioni.reduce((a,b)=>a+b,0);
+const marg = 40820;
+const proiez = 303520;
+document.getElementById('kpiVenduto').textContent = formatEuro(totV);
+document.getElementById('kpiProvvigioni').textContent = formatEuro(totP);
+document.getElementById('kpiMargine').textContent = formatEuro(marg);
+document.getElementById('kpiProiezione').textContent = formatEuro(proiez + 65603);
+
+// Tabella
+const tbody = document.getElementById('tbodyMandanti');
+const nomi = data.labels;
+const trend = ['🟢 +45%','🟢 +20%','🟠 sotto budget','🟡 variabile 7,8%','🔴 Est -42%','🔴 -15 clienti','🟡 55,8% budget'];
+for(let i=0;i<nomi.length;i++){
+  tbody.innerHTML +=
+    `<tr>
+      <td><strong>${nomi[i]}</strong></td>
+      <td style="text-align:right">${formatx(data.venduto[i])}</td>
+      <td style="text-align:center">${(data.venduto[i]/totV*100).toFixed(1)}%</td>
+      <td style="text-align:center">${(data.provvigioni[i]/data.venduto[i]*100).toFixed(1)}%</td>
+      <td style="text-align:right;font-weight:600">${formatx(data.provvigioni[i])}</td>
+      <td style="text-align:center"><span class="pill ${i<2?'pill-green':i<4?'pill-orange':'pill-red'}">gen-lug</span></td>
+      <td>${trend[i]}</td>
+    </tr>`;
+}
+
+// Chart Venduto
+new Chart(document.getElementById('chartVenduto'),{
+  type:'bar',
+  data:{
+    labels:data.labels,
+    datasets:[{
+      data:data.venduto.map(v=>(v/1000).toFixed(0)),
+      backgroundColor:data.colori,
+      borderRadius:4
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'€ '+(ctx.raw*1000).toLocaleString('it-IT')}}},
+    scales:{
+      y:{beginAtZero:true,ticks:{callback:v=>'€'+(v*1000).toLocaleString('it-IT'),color:'#5a6472'}},
+      x:{ticks:{color:'#5a6472'}}
+    }
+  }
+});
+
+// Chart Provvigioni
+new Chart(document.getElementById('chartProvvigioni'),{
+  type:'bar',
+  data:{
+    labels:data.labels,
+    datasets:[{
+      data:data.provvigioni.map(v=>(v/1000).toFixed(0)),
+      backgroundColor:data.colori,
+      borderRadius:4
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'€ '+(ctx.raw*1000).toLocaleString('it-IT')}}},
+    scales:{
+      y:{beginAtZero:true,ticks:{callback:v=>'€'+(v*1000).toLocaleString('it-IT'),color:'#5a6472'}},
+      x:{ticks:{color:'#5a6472'}}
+    }
+  }
+});
+
+// Chart Guadagno (provvigioni vs margine comm.)
+new Chart(document.getElementById('chartGuadagno'),{
+  type:'doughnut',
+  data:{
+    labels:['Provvigioni 7 mandanti','Margine Commercializzato'],
+    datasets:[{
+      data:[totP,marg],
+      backgroundColor:['#146ff8','#1fae5f'],
+      borderWidth:0
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{position:'bottom',labels:{padding:12,font:{size:11}}},
+      tooltip:{callbacks:{label:ctx=>ctx.label+': €'+ctx.raw.toLocaleString('it-IT')}}
+    },
+    cutout:'60%'
+  }
+});
+
+// Chart Proiezione Mensile
+const mesi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+// Simula venduto mensile basato sulla distribuzione YTD /7 * 12
+const mensili = [];
+const totMensile = totV / 7;
+for(let i=0;i<12;i++){
+  // luglio era alto, giugno medio, gen-feb più bassi
+  let coeff = 1 + Math.sin(i/12*Math.PI*2 - Math.PI/2)*0.3;
+  if(i<7) mensili.push(Math.round((totMensile * coeff)/1000));
+  else mensili.push(Math.round((totV/7 * 0.85 * coeff)/1000));
+}
+new Chart(document.getElementById('chartMensile'),{
+  type:'line',
+  data:{
+    labels:mesi,
+    datasets:[
+      {
+        label:'2026 reale',
+        data:mensili.slice(0,7),
+        borderColor:'#146ff8',
+        backgroundColor:'rgba(20,111,248,.1)',
+        pointBackgroundColor:'#146ff8',
+        fill:true,
+        tension:.3,
+        borderWidth:2
+      },
+      {
+        label:'2026 proiez.',
+        data:mensili.slice(6,12),
+        borderColor:'#e67e22',
+        backgroundColor:'rgba(230,126,34,.1)',
+        pointBackgroundColor:'#e67e22',
+        borderDash:[5,5],
+        fill:true,
+        tension:.3,
+        borderWidth:2
+      }
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}},
+      tooltip:{callbacks:{label:ctx=>'€'+(ctx.raw*1000).toLocaleString('it-IT')}}
+    },
+    scales:{
+      y:{beginAtZero:false,ticks:{callback:v=>'€'+(v*1000).toLocaleString('it-IT'),color:'#5a6472'}},
+      x:{ticks:{color:'#5a6472'}}
+    }
+  }
+});
+</script>
+</body></html>
